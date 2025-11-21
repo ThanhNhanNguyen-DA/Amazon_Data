@@ -27,36 +27,6 @@ Hệ thống gợi ý thời trang thông minh sử dụng **Hybrid Search** (K�
 
 ### 1. Clone dự án
 
-```bash
-git clone https://github.com/ThanhNhanNguyen-DA/Amazon_Data.git
-cd Amazon_Data
-```
-
-### 2. Cài đặt thư viện
-
-Khuyên dùng môi trường ảo (Virtual Environment):
-
-```bash
-# Tạo môi trường ảo
-python -m venv venv
-
-# Kích hoạt (Windows)
-.\venv\Scripts\activate
-
-# Kích hoạt (Mac/Linux)
-source venv/bin/activate
-```
-
-Cài đặt dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Cấu hình môi trường (.env)
-
-Tạo file `.env` tại thư mục gốc và điền thông tin Supabase của bạn:
-
 ```env
 SUPABASE_URL="https://your-project-id.supabase.co"
 SUPABASE_ANON_KEY="your-anon-key"
