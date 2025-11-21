@@ -1,0 +1,37 @@
+# Nền tảng Web & Config
+streamlit
+python-dotenv
+packaging # <--- Thư viện phụ trợ cho Streamlit
+requests
+# LLM (Local)
+ollama
+
+# LangChain & LangGraph (Agent & Orchestration)
+langchain
+langchain_community
+langchain_core
+langgraph # <--- Gói thư viện "master"
+langsmith # <--- Thư viện phụ trợ cho LangChain-Core
+
+# Xử lý RAG (File & Text)
+pypdf
+python-docx
+docx2txt
+langchain-text-splitters
+
+# Vector DB (Supabase)
+supabase # <--- Gói Supabase chính thức
+
+# Embedding (Local & Ổn định)
+sentence-transformers
+
+# Xử lý Giọng nói (STT)
+transformers
+torch # <--- Bắt buộc cho transformers và easyocr
+audio-recorder-streamlit
+soundfile
+
+# Xử lý Ảnh (OCR)
+easyocr
+opencv-python-headless
+numpy
