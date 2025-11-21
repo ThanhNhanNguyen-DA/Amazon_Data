@@ -24,8 +24,11 @@ Hệ thống gợi ý thời trang thông minh sử dụng **Hybrid Search** (K�
     - Cần chạy script tạo bảng và function RPC (liên hệ admin để lấy script SQL).
 
 ## 📦 Cài đặt & Chạy dự án
+### 1. Cài đặt môi trường
+conda env create -f environment.yml
+conda activate env
 
-### 1. Clone dự án
+### 2. Clone dự án
 
 ```env
 SUPABASE_URL="https://your-project-id.supabase.co"
