@@ -25,8 +25,11 @@ Hệ thống gợi ý thời trang thông minh sử dụng **Hybrid Search** (K�
 
 ## 📦 Cài đặt & Chạy dự án
 ### 1. Cài đặt môi trường
+
+```bash
 conda env create -f environment.yml
 conda activate env
+```
 
 ### 2. Clone dự án
 
