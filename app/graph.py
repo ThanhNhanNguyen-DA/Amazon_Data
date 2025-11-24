@@ -3,7 +3,8 @@ from app.tools import (
     AgentState, 
     search_fashion_tool, 
     recommend_outfit_tool, 
-    generate_stylist_answer
+    generate_stylist_answer,
+    search_books_tool
 )
 from langchain_community.chat_models import ChatOllama
 import logging
@@ -18,68 +19,109 @@ logger = logging.getLogger(__name__)
 
 def translate_input_node(state: AgentState):
     """
-    Node 1 (Nâng cấp): Nhận diện ngôn ngữ & Chuẩn hóa đầu vào.
-    - Nếu User nhập Tiếng Anh -> Giữ nguyên.
-    - Nếu User nhập Tiếng Việt -> Dịch sang Tiếng Anh (để CLIP và Vector Search hoạt động tốt nhất).
+    Node 1: Xử lý Ngôn ngữ & Phân loại Ý định (Router).
+    Thứ tự: Dịch -> Phân loại.
     """
-    logger.info("---NODE: Xử lý Ngôn ngữ Đầu vào---")
+    logger.info("---NODE: Xử lý Ngôn ngữ & Router---")
     question = (state.get("question") or "").strip()
     
+    # Mặc định nếu không có input
     if not question:
-        return {"question_en": ""}
+        return {"question_en": "", "category_intent": "fashion"}
 
     llm = ChatOllama(model="llama3", temperature=0)
     
-    # --- PROMPT THÔNG MINH (IF-ELSE LOGIC) ---
-    prompt = f"""
-    You are a smart translator helper.
+    # -----------------------------------------
+    # BƯỚC 1: DỊCH THUẬT (Tạo ra question_en)
+    # -----------------------------------------
+    trans_prompt = f"""
+    You are a smart translator.
     Input text: "{question}"
     
     Logic:
-    1. Detect the language of the input text.
-    2. IF the text is already in English (or mostly English terms like 'Sneaker', 'Vintage'), keep it EXACTLY as is.
-    3. IF the text is in Vietnamese, translate it to English.
+    1. IF input is Vietnamese -> Translate to English.
+    2. IF input is English -> Keep it exactly as is.
     
-    OUTPUT REQUIREMENT: Return ONLY the final English text. Do not write any explanation.
+    Output ONLY the final English text. No explanations.
     """
     
     try:
-        res = llm.invoke(prompt)
-        # Làm sạch chuỗi kết quả (đôi khi LLM thêm dấu " hoặc xuống dòng)
+        res = llm.invoke(trans_prompt)
         question_en = res.content.strip().strip('"').strip("'")
+    except Exception as e:
+        logger.error(f"Lỗi dịch: {e}")
+        question_en = question # Fallback dùng tiếng Việt luôn
         
-        # Log để bạn kiểm tra xem nó có hoạt động đúng không
-        logger.info(f"Input gốc: {question} -> Input xử lý: {question_en}")
+    logger.info(f"👉 Input: {question} -> EN: {question_en}")
+
+    # -----------------------------------------
+    # BƯỚC 2: PHÂN LOẠI (Dùng question_en đã có)
+    # -----------------------------------------
+    router_prompt = f"""
+    Classify the user intent based on this query: "{question_en}"
+    
+    Options:
+    - "book": if asking about books, authors, reading, novels.
+    - "fashion": if asking about clothes, shoes, style, outfit.
+    - "general": otherwise.
+    
+    Output ONLY one word: book OR fashion OR general.
+    """
+    
+    try:
+        intent_res = llm.invoke(router_prompt)
+        intent = intent_res.content.strip().lower()
+        
+        # Làm sạch output (phòng trường hợp LLM nói dài dòng)
+        if "book" in intent: category = "book"
+        elif "fashion" in intent: category = "fashion"
+        else: category = "fashion" # Mặc định an toàn
         
     except Exception as e:
-        logger.error(f"Lỗi xử lý ngôn ngữ: {e}")
-        question_en = question # Fallback: Dùng nguyên văn
-
-    return {"question_en": question_en}
-
-def search_node(state: AgentState):
-    """Node 2: Tìm kiếm sản phẩm (Content-Based)."""
-    logger.info("---NODE: Tìm kiếm sản phẩm---")
+        logger.error(f"Lỗi Router: {e}")
+        category = "fashion"
     
-    # Gọi tool search
-    # Tool này sẽ tự ưu tiên dùng ảnh (image_bytes) nếu có, hoặc dùng text (question_en)
-    products = search_fashion_tool(state)
+    logger.info(f"👉 Router Decision: {category.upper()}")
+    
+    return {"question_en": question_en, "category_intent": category}
+    
+def search_node(state: AgentState):
+    """Node 2: Tìm kiếm (Đa ngành hàng)"""
+    intent = state.get("category_intent", "fashion")
+    
+    if intent == "book":
+        logger.info("---NODE: Tìm kiếm SÁCH---")
+        products = search_books_tool(state)
+    else:
+        logger.info("---NODE: Tìm kiếm THỜI TRANG---")
+        products = search_fashion_tool(state)
     
     return {"recommendations": products}
 
+
 def recommendation_node(state: AgentState):
-    """Node 3: Gợi ý mua kèm (Collaborative Filtering)."""
-    logger.info("---NODE: Gợi ý mua kèm---")
+    """Node 3: Gợi ý mua kèm (Collaborative Filtering) đa ngành hàng."""
+    
+    # 1. Lấy Ý định (Book hay Fashion?) từ State (đã được Router xác định trước đó)
+    intent = state.get("category_intent", "fashion")
+    
+    # Log để debug xem hệ thống đang chạy nhánh nào
+    if intent == 'book':
+        logger.info("---NODE: Gợi ý SÁCH mua kèm---")
+    else:
+        logger.info("---NODE: Gợi ý THỜI TRANG phối đồ---")
+
     current_recs = state.get("recommendations", [])
     
-    # Chiến thuật: Lấy sản phẩm đầu tiên tìm thấy (giống nhất) để gợi ý đồ phối
+    # Chiến thuật: Lấy sản phẩm đầu tiên tìm thấy (giống nhất) để làm gốc gợi ý
     if current_recs:
         top_product_id = current_recs[0]['id']
         
-        # Gọi tool recommend
-        outfit_items = recommend_outfit_tool(top_product_id)
+        # 2. Gọi tool với tham số product_type
+        # Hàm này sẽ tự động chọn bảng 'books_index' hoặc 'fashion_clip_index' dựa trên intent
+        outfit_items = recommend_outfit_tool(top_product_id, product_type=intent)
         
-        # Gộp vào danh sách hiện có (tránh trùng lặp nếu cần)
+        # Gộp vào danh sách hiện có (tránh trùng lặp ID)
         existing_ids = {p['id'] for p in current_recs}
         for item in outfit_items:
             if item['id'] not in existing_ids:
