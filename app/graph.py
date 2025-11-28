@@ -3,127 +3,99 @@ from app.tools import (
     AgentState, 
     search_fashion_tool, 
     recommend_outfit_tool, 
-    generate_stylist_answer,
     search_books_tool
 )
-from langchain_community.chat_models import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
 import logging
+import json
+import os
 
-# Cấu hình Log để dễ debug
+# Cấu hình Log
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Lấy API Key
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
 # -----------------------------
-# CÁC NODES (NHÂN VIÊN)
+# NODE 1: HIỂU Ý ĐỊNH (INTENT & QUERY EXTRACTOR)
 # -----------------------------
-
-def translate_input_node(state: AgentState):
+def understand_query_node(state: AgentState):
     """
-    Node 1: Xử lý Ngôn ngữ & Phân loại Ý định (Router).
-    Thứ tự: Dịch -> Phân loại.
+    Thay thế cho translate_input_node.
+    Nhiệm vụ: 
+    1. Hiểu câu hỏi (bất kể ngôn ngữ nào).
+    2. Trích xuất từ khóa tìm kiếm chuẩn tiếng Anh (cho Vector Search).
+    3. Phân loại Intent (Book/Fashion).
+    4. Phát hiện ngôn ngữ người dùng (để trả lời sau này).
     """
-    logger.info("---NODE: Xử lý Ngôn ngữ & Router---")
+    logger.info("---NODE: Hiểu Ý Định (Gemini)---")
     question = (state.get("question") or "").strip()
     
-    # Mặc định nếu không có input
     if not question:
-        return {"question_en": "", "category_intent": "fashion"}
-    
-    # llm = ChatOllama(model="llama3", temperature=0)
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
-    
-    # -----------------------------------------
-    # BƯỚC 1: DỊCH THUẬT (Tạo ra question_en)
-    # -----------------------------------------
-    trans_prompt = f"""
-    You are a smart translator.
-    Input text: "{question}"
-    
-    Logic:
-    1. IF input is Vietnamese -> Translate to English.
-    2. IF input is English -> Keep it exactly as is.
-    
-    Output ONLY the final English text. No explanations.
-    """
-    
-    try:
-        res = llm.invoke(trans_prompt)
-        question_en = res.content.strip().strip('"').strip("'")
-    except Exception as e:
-        logger.error(f"Lỗi dịch: {e}")
-        question_en = question # Fallback dùng tiếng Việt luôn
-        
-    logger.info(f"👉 Input: {question} -> EN: {question_en}")
+        return {"question_en": "", "category_intent": "fashion", "user_lang": "vi"}
 
-    # -----------------------------------------
-    # BƯỚC 2: PHÂN LOẠI (Dùng question_en đã có)
-    # -----------------------------------------
-    router_prompt = f"""
-    Classify the user intent based on this query: "{question_en}"
+    # Prompt đa năng
+    prompt = f"""
+    Analyze the user's query: "{question}"
     
-    Options:
-    - "book": if asking about books, authors, reading, novels.
-    - "fashion": if asking about clothes, shoes, style, outfit.
-    - "general": otherwise.
+    Output a JSON object with:
+    1. "search_query": The best English keywords to search for this product in a database (e.g. "red floral dress").
+    2. "intent": "book" or "fashion".
+    3. "language": The language code of the user's query (e.g. "vi", "en", "fr").
     
-    Output ONLY one word: book OR fashion OR general.
+    JSON Output:
     """
     
     try:
-        intent_res = llm.invoke(router_prompt)
-        intent = intent_res.content.strip().lower()
+        res = llm.invoke(prompt)
+        # Xử lý JSON từ Gemini (đôi khi nó bọc trong ```json ... ```)
+        content = res.content.strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+            
+        data = json.loads(content)
         
-        # Làm sạch output (phòng trường hợp LLM nói dài dòng)
-        if "book" in intent: category = "book"
-        elif "fashion" in intent: category = "fashion"
-        else: category = "fashion" # Mặc định an toàn
+        q_en = data.get("search_query", "")
+        intent = data.get("intent", "fashion")
+        lang = data.get("language", "vi")
         
     except Exception as e:
-        logger.error(f"Lỗi Router: {e}")
-        category = "fashion"
+        logger.error(f"Lỗi hiểu ý định: {e}")
+        q_en = question 
+        intent = "fashion"
+        lang = "vi"
+        
+    logger.info(f"👉 Query: {q_en} | Intent: {intent} | Lang: {lang}")
     
-    logger.info(f"👉 Router Decision: {category.upper()}")
-    
-    return {"question_en": question_en, "category_intent": category}
-    
+    # Lưu user_lang vào state để dùng ở bước cuối
+    return {"question_en": q_en, "category_intent": intent, "user_lang": lang}
+
+# -----------------------------
+# NODE 2: TÌM KIẾM (Giữ nguyên logic)
+# -----------------------------
 def search_node(state: AgentState):
-    """Node 2: Tìm kiếm (Đa ngành hàng)"""
     intent = state.get("category_intent", "fashion")
     
     if intent == "book":
-        logger.info("---NODE: Tìm kiếm SÁCH---")
         products = search_books_tool(state)
     else:
-        logger.info("---NODE: Tìm kiếm THỜI TRANG---")
         products = search_fashion_tool(state)
     
     return {"recommendations": products}
 
-
+# -----------------------------
+# NODE 3: GỢI Ý (Giữ nguyên logic)
+# -----------------------------
 def recommendation_node(state: AgentState):
-    """Node 3: Gợi ý mua kèm (Collaborative Filtering) đa ngành hàng."""
-    
-    # 1. Lấy Ý định (Book hay Fashion?) từ State (đã được Router xác định trước đó)
     intent = state.get("category_intent", "fashion")
-    
-    # Log để debug xem hệ thống đang chạy nhánh nào
-    if intent == 'book':
-        logger.info("---NODE: Gợi ý SÁCH mua kèm---")
-    else:
-        logger.info("---NODE: Gợi ý THỜI TRANG phối đồ---")
-
     current_recs = state.get("recommendations", [])
     
-    # Chiến thuật: Lấy sản phẩm đầu tiên tìm thấy (giống nhất) để làm gốc gợi ý
     if current_recs:
         top_product_id = current_recs[0]['id']
-        
-        # 2. Gọi tool với tham số product_type
-        # Hàm này sẽ tự động chọn bảng 'books_index' hoặc 'fashion_clip_index' dựa trên intent
         outfit_items = recommend_outfit_tool(top_product_id, product_type=intent)
         
-        # Gộp vào danh sách hiện có (tránh trùng lặp ID)
         existing_ids = {p['id'] for p in current_recs}
         for item in outfit_items:
             if item['id'] not in existing_ids:
@@ -131,65 +103,59 @@ def recommendation_node(state: AgentState):
         
     return {"recommendations": current_recs}
 
+# -----------------------------
+# NODE 4: TRẢ LỜI (Đa ngôn ngữ)
+# -----------------------------
 def generate_answer_node(state: AgentState):
-    """Node 4: Sinh câu trả lời tư vấn (Bằng Tiếng Anh)."""
-    logger.info("---NODE: Sinh câu trả lời (EN)---")
-    
-    # Hàm này trả về text tiếng Anh (do prompt trong tools.py viết bằng tiếng Anh)
-    ans_en = generate_stylist_answer(state)
-    return {"answer_en": ans_en}
-
-def translate_output_node(state: AgentState):
     """
-    Node 5: Luôn dịch câu trả lời về Tiếng Việt (Theo yêu cầu của bạn).
+    Thay thế cho generate_answer_node cũ và translate_output_node.
+    Gemini sẽ trả lời trực tiếp bằng ngôn ngữ của người dùng.
     """
-    logger.info("---NODE: Dịch Output (EN -> VI)---")
-    ans_en = state.get("answer_en", "")
+    logger.info("---NODE: Sinh câu trả lời---")
     
-    if not ans_en:
-        return {"answer_vi": "Xin lỗi, tôi không tìm thấy thông tin."}
+    user_lang = state.get("user_lang", "vi") # Lấy ngôn ngữ đã detect
+    products = state.get("recommendations", [])
+    
+    if not products:
+        fail_msg = "Xin lỗi, mình không tìm thấy sản phẩm phù hợp." if user_lang == "vi" else "Sorry, I couldn't find any matching products."
+        return {"answer_vi": fail_msg}
 
-    # llm = ChatOllama(model="llama3", temperature=0)
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+    product_titles = [p['title'] for p in products[:3]]
     
-    # Prompt ép buộc trả về Tiếng Việt
+    # Prompt ép Gemini trả lời đúng ngôn ngữ
     prompt = f"""
-    Translate the following response into natural, polite Vietnamese (like a helpful shop assistant).
+    Role: You are a professional AI Stylist & Shopping Assistant.
     
-    English Content: "{ans_en}"
+    Context:
+    - User Query: "{state.get('question', '')}"
+    - Found Products: {product_titles}
+    - User Language Code: "{user_lang}"
     
-    Vietnamese Translation:
+    Task:
+    Write a short, helpful response IN THE USER'S LANGUAGE ({user_lang}).
+    Introduce the products briefly and encourage them to take a look.
+    Do NOT output JSON. Just plain text.
     """
     
-    try:
-        res = llm.invoke(prompt)
-        ans_vi = res.content.strip()
-    except Exception as e:
-        logger.error(f"Lỗi dịch output: {e}")
-        ans_vi = ans_en 
-        
-    return {"answer_vi": ans_vi}
+    res = llm.invoke(prompt)
+    return {"answer_vi": res.content} # Lưu thẳng vào answer_vi để Main UI hiển thị
 
 # -----------------------------
-# XÂY DỰNG GRAPH
+# BUILD GRAPH
 # -----------------------------
 def build_fashion_graph():
     workflow = StateGraph(AgentState)
     
-    # 1. Thêm các node vào đồ thị
-    workflow.add_node("translate_input", translate_input_node)
+    workflow.add_node("understand", understand_query_node) # Node mới
     workflow.add_node("search", search_node)
     workflow.add_node("recommend", recommendation_node)
-    workflow.add_node("generate_answer", generate_answer_node)
-    workflow.add_node("translate_output", translate_output_node) # <-- Node mới
+    workflow.add_node("answer", generate_answer_node) # Node trả lời trực tiếp
     
-    # 2. Nối dây (Edges) - Quy trình tuần tự
-    workflow.set_entry_point("translate_input")
+    workflow.set_entry_point("understand")
     
-    workflow.add_edge("translate_input", "search")
+    workflow.add_edge("understand", "search")
     workflow.add_edge("search", "recommend")
-    workflow.add_edge("recommend", "generate_answer")
-    workflow.add_edge("generate_answer", "translate_output") # <-- Nối sang dịch
-    workflow.add_edge("translate_output", END) # <-- Kết thúc sau khi dịch
+    workflow.add_edge("recommend", "answer")
+    workflow.add_edge("answer", END)
     
     return workflow.compile()

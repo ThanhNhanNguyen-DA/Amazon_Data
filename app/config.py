@@ -14,3 +14,5 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 # Model CLIP cho thời trang (MỚI)
 CLIP_MODEL_NAME = "openai/clip-vit-base-patch32"
+
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")

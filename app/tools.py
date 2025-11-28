@@ -8,10 +8,11 @@ class AgentState(TypedDict):
     question: str           
     image_bytes: Optional[bytes] 
     question_en: Optional[str]
-    category_intent: Optional[str]   
+    category_intent: Optional[str]
+    user_lang: Optional[str] # <-- THÊM DÒNG NÀY
     recommendations: Optional[List[dict]] 
     answer_en: Optional[str]     
-    answer_vi: Optional[str]     
+    answer_vi: Optional[str]   
 
 # ==================================================
 # NHÓM TOOL CƠ BẢN

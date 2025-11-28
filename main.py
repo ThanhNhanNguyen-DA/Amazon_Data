@@ -18,7 +18,7 @@ from app.utils import process_voice_input
 # ==========================================
 st.set_page_config(
     layout="wide", 
-    page_title="AI Multimodal Personal Shopper", 
+    page_title="Multimodal Recommendation System", 
     page_icon="🛍️",
     initial_sidebar_state="collapsed"
 )
@@ -301,7 +301,7 @@ def render_product_card(product, key_prefix=""):
 # ==========================================
 # --- SIDEBAR ---
 with st.sidebar:
-    st.title("🛍️ Personal Shopper")
+    st.title("🛍️ Multimodal Recommendation System")
     st.markdown("---")
     st.markdown("### ⚙️ Cài đặt")
     st.checkbox("Chế độ tối", value=True, disabled=True, help="Mặc định luôn bật")
@@ -321,8 +321,7 @@ c_logo, c_title = st.columns([1, 10])
 with c_logo:
     st.markdown("<div style='font-size: 3rem;'>🛍️</div>", unsafe_allow_html=True)
 with c_title:
-    st.title("AI Multimodal Personal Shopper")
-    st.caption("Trợ lý mua sắm thông minh của bạn - Powered by Gemini & LangChain")
+    st.title("Multimodal Recommendation System")
 
 # Navigation
 if st.session_state.viewing_product:
@@ -364,7 +363,7 @@ with col_left:
         dynamic_key = str(st.session_state.input_id)
         
         # Text Input
-        input_text = st.chat_input("Nhập mô tả...", key=f"chat_input_{dynamic_key}")
+        input_text = st.chat_input("Nhập...", key=f"chat_input_{dynamic_key}")
         
         # Multimedia Input
         c_voice, c_upload = st.columns([1, 1])
@@ -421,7 +420,7 @@ with col_left:
         app = build_fashion_graph()
         inputs = {"question": final_query or "", "image_bytes": image_bytes}
         
-        with st.spinner("✨ AI đang suy nghĩ & tìm kiếm..."):
+        with st.spinner("✨ Đang suy nghĩ..."):
             try:
                 final_state = app.invoke(inputs)
                 
@@ -500,7 +499,7 @@ with col_right:
         st.markdown("---")
         
         # --- RECSYS 1: Graph (Mua kèm) ---
-        st.markdown("<div class='section-header'>🛍️ Thường được mua cùng (Graph)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-header'>🛍️ Thường được mua cùng</div>", unsafe_allow_html=True)
         
         # Determine Type (Book or Fashion)
         p_type = p.get('type') or ('book' if p.get('author') else 'fashion')
@@ -515,7 +514,7 @@ with col_right:
                 st.info("Chưa có dữ liệu mua kèm cho sản phẩm này.")
 
         # --- RECSYS 2: Vector/Hybrid (Tương tự) ---
-        st.markdown("<div class='section-header'>✨ Có thể bạn cũng thích (Hybrid AI)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-header'>✨ Có thể bạn cũng thích</div>", unsafe_allow_html=True)
         with st.spinner("AI đang phân tích..."):
             # Smart Switching
             sim = switching_hybrid_tool(p['id'], top_k=4)
@@ -543,5 +542,3 @@ with col_right:
                 <div class="hero-subtitle">Tôi có thể giúp bạn tìm kiếm phong cách thời trang hoặc cuốn sách hoàn hảo.</div>
             </div>
             """, unsafe_allow_html=True)
-            
-            
