@@ -26,205 +26,147 @@ st.set_page_config(
 # ==========================================
 # 2. PROFESSIONAL CSS (DARK THEME)
 # ==========================================
+# --- 2. CSS & THEME (FIXED MOBILE VISIBILITY) ---
 st.markdown("""
 <style>
-    /* GLOBAL THEME */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
-    
+
     :root {
         --bg-color: #0f172a;
-        --card-bg: rgba(30, 41, 59, 0.7);
-        --sidebar-bg: rgba(15, 23, 42, 0.9);
-        --text-primary: #f8fafc;
+        --card-bg: #1e293b; /* Màu nền card đặc, không dùng rgba để tránh lỗi trong suốt trên mobile */
+        --text-primary: #f1f5f9;
         --text-secondary: #94a3b8;
-        --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
         --accent-color: #6366f1;
-        --border: rgba(148, 163, 184, 0.1);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.05);
+        --accent-hover: #4f46e5;
+        --highlight: #f43f5e;
+        --border-color: #334155;
     }
 
-    body, .stApp { 
-        background-color: var(--bg-color); 
-        color: var(--text-primary);
+    /* Ép buộc chế độ tối cho toàn bộ trang web */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: var(--bg-color) !important;
+        color: var(--text-primary) !important;
         font-family: 'Outfit', sans-serif;
     }
+    
+    /* Đảm bảo chữ luôn màu sáng */
+    h1, h2, h3, h4, h5, h6, p, span, div, label {
+        color: var(--text-primary) !important;
+    }
 
-    /* CUSTOM SCROLLBAR */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    ::-webkit-scrollbar-track { background: transparent; }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-color); }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
-    /* GLASSMORPHISM CARD */
+    /* Product Card - Tăng độ tương phản */
     .product-card {
-        background: var(--card-bg);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: var(--glass-border);
+        background-color: var(--card-bg) !important;
         border-radius: 16px;
-        padding: 12px;
-        transition: all 0.3s ease;
-        margin-bottom: 16px;
-        position: relative;
         overflow: hidden;
+        border: 1px solid var(--border-color);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
-    .product-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.4);
-        border-color: rgba(99, 102, 241, 0.5);
-    }
-    .product-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; height: 4px;
-        background: var(--accent-gradient);
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    .product-card:hover::before { opacity: 1; }
-
-    /* IMAGE WRAPPER */
+    
+    /* Image Wrapper */
     .img-wrapper {
         width: 100%;
-        height: 200px;
-        border-radius: 12px;
-        overflow: hidden;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background-color: #fff;
-        margin-bottom: 12px;
+        padding-top: 120%; /* Tỷ lệ khung ảnh */
         position: relative;
+        background-color: #000; /* Nền đen dưới ảnh */
     }
+    
     .img-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        transition: transform 0.5s;
-    }
-    .product-card:hover .img-wrapper img {
-        transform: scale(1.05);
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        object-fit: cover;
     }
 
-    /* TEXT STYLING */
+    /* Card Content */
+    .card-content {
+        padding: 12px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Title - Fix lỗi mất chữ trên mobile */
     .product-title {
-        font-size: 15px;
+        font-size: 0.95rem;
         font-weight: 600;
-        color: var(--text-primary);
-        line-height: 1.4;
-        height: 42px;
-        overflow: hidden;
+        margin-bottom: 8px;
+        color: #ffffff !important; /* Ép màu trắng tuyệt đối */
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        margin-bottom: 6px;
+        overflow: hidden;
+        height: 2.6em;
     }
+    
+    /* Author / Subtitle */
     .product-author {
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+        font-size: 0.8rem;
+        color: #cbd5e1 !important; /* Màu xám sáng */
+        margin-bottom: 8px;
     }
-    
-    /* BADGES & INFO */
-    .ai-reason {
-        background: rgba(99, 102, 241, 0.15);
-        color: #a5b4fc;
-        padding: 6px 10px;
+
+    /* Buttons */
+    .stButton button {
         border-radius: 8px;
-        font-size: 11px;
-        margin-bottom: 10px;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-    }
-    
-    /* STREAMLIT UI OVERRIDES */
-    div[data-testid="stVerticalBlock"] > div > div[data-testid="stVerticalBlock"] {
-        background-color: transparent;
+        font-weight: 500;
         border: none;
-        box-shadow: none;
-    }
-    .stTextInput input { 
-        background-color: rgba(30, 41, 59, 0.5) !important; 
-        border: 1px solid rgba(148, 163, 184, 0.2) !important; 
-        color: white !important; 
-        border-radius: 10px;
-    }
-    .stTextInput input:focus {
-        border-color: var(--accent-color) !important;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-    }
-    
-    /* CHAT MESSAGES */
-    .stChatMessage { 
-        background-color: rgba(30, 41, 59, 0.4); 
-        border: 1px solid rgba(255,255,255,0.05);
-        border-radius: 12px;
-    }
-    .stChatMessage[data-state="user"] { 
-        background: linear-gradient(135deg, rgba(79, 70, 229, 0.2), rgba(124, 58, 237, 0.2));
-        border: 1px solid rgba(99, 102, 241, 0.3);
-    }
-    
-    /* HEADER */
-    .section-header {
-        font-size: 1.4rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #fff, #94a3b8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 30px 0 15px 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    /* TOAST */
-    div[data-testid="stToast"] {
-        background-color: #1e293b !important;
-        border: 1px solid #334155 !important;
         color: white !important;
-    }
-    
-    /* HERO SECTION */
-    .hero-container {
-        text-align: center;
-        padding: 40px 20px;
-        background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-        border-radius: 20px;
-        margin-top: 20px;
-        border: 1px dashed rgba(148, 163, 184, 0.2);
-    }
-    .hero-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 10px;
-    }
-    .hero-subtitle {
-        font-size: 1.1rem;
-        color: #94a3b8;
-        margin-bottom: 30px;
-    }
-    .suggestion-chip {
-        display: inline-block;
-        padding: 8px 16px;
-        background: rgba(30, 41, 59, 0.6);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 20px;
-        color: #e2e8f0;
-        font-size: 0.9rem;
-        margin: 5px;
-        cursor: pointer;
         transition: all 0.2s;
     }
-    .suggestion-chip:hover {
-        background: rgba(99, 102, 241, 0.2);
-        border-color: #6366f1;
-        transform: translateY(-2px);
+    
+    /* Chat Interface */
+    .chat-container {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 10px;
     }
+
+    /* Chat Input Fix */
+    .stTextInput input {
+        background-color: #334155 !important;
+        color: white !important;
+        border: 1px solid #475569 !important;
+    }
+    
+    /* Mobile Fix cho Sidebar và Menu */
+    [data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        border-right: 1px solid #334155;
+    }
+    
+    /* Badges */
+    .badge {
+        background-color: rgba(99, 102, 241, 0.2);
+        color: #a5b4fc !important;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Header Gradient */
+    .main-header {
+        text-align: center;
+        padding: 1.5rem 0;
+        background: linear-gradient(90deg, #818cf8 0%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+</style>
 """, unsafe_allow_html=True)
 
 # ==========================================
