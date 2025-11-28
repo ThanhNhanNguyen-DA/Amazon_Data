@@ -2,7 +2,7 @@ import functools
 from typing import TypedDict, List, Optional, Any
 from langchain_community.chat_models import ChatOllama
 from app.utils import get_supabase_client, create_clip_embedding
-
+from langchain_google_genai import ChatGoogleGenerativeAI
 # --- ĐỊNH NGHĨA STATE ---
 class AgentState(TypedDict):
     question: str           
@@ -235,7 +235,8 @@ def search_books_tool(state: AgentState, top_k: int = 5) -> List[dict]:
         return []
 
 def generate_stylist_answer(state: AgentState):
-    llm = ChatOllama(model="llama3", temperature=0.7)
+    # llm = ChatOllama(model="llama3", temperature=0.7)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.7)
     products = state.get("recommendations", [])
     if not products:
         return "I'm sorry, I couldn't find any matching products."

@@ -7,6 +7,7 @@ from app.tools import (
     search_books_tool
 )
 from langchain_community.chat_models import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 import logging
 
 # Cấu hình Log để dễ debug
@@ -28,8 +29,9 @@ def translate_input_node(state: AgentState):
     # Mặc định nếu không có input
     if not question:
         return {"question_en": "", "category_intent": "fashion"}
-
-    llm = ChatOllama(model="llama3", temperature=0)
+    
+    # llm = ChatOllama(model="llama3", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
     
     # -----------------------------------------
     # BƯỚC 1: DỊCH THUẬT (Tạo ra question_en)
@@ -147,7 +149,8 @@ def translate_output_node(state: AgentState):
     if not ans_en:
         return {"answer_vi": "Xin lỗi, tôi không tìm thấy thông tin."}
 
-    llm = ChatOllama(model="llama3", temperature=0)
+    # llm = ChatOllama(model="llama3", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
     
     # Prompt ép buộc trả về Tiếng Việt
     prompt = f"""

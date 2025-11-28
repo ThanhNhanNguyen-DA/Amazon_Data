@@ -9,6 +9,7 @@ ollama
 # LangChain & LangGraph (Agent & Orchestration)
 langchain
 langchain_community
+langchain_google_genai
 langchain_core
 langgraph # <--- Gói thư viện "master"
 langsmith # <--- Thư viện phụ trợ cho LangChain-Core
